@@ -5,7 +5,7 @@ import Codegen (Codegen(..), componentJSFile, componentPSFile, iconJSFile, iconP
 import Codegen (component, icon, write) as Codegen
 import Codegen.AST (ModuleName(..), TypeName(..))
 import Codegen.AST (Type) as AST
-import Codegen.AST.Sugar.Type (boolean, int, number, string)
+import Codegen.AST.Sugar.Type (int, number, string)
 import Codegen.AST.Sugar.Type (constructor) as Type
 import Codegen.AST.Types (TypeF(..))
 import Codegen.Component (Component, FieldDetails, Icon, ModulePath(..), Root(..), arrayJSX, iconName, jsx, psImportPath, rbProps)
@@ -126,6 +126,63 @@ components =
             , generate: [ "classes", "color", "elevation", "position" ]
             }
         , root: MUIComponent paper
+        }
+
+    accordion =
+      simpleComponent
+        { name: "Accordion"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ children
+                  , eventHandlerProp "onChange"
+                  , checkedProp "TransitionComponent" foreignType
+                  , checkedProp "TransitionProps" foreignType
+                  ]
+            , generate: [ "classes", "defaultExpanded", "disabled", "expanded", "square" ]
+            }
+        , root: MUIComponent paper
+        }
+
+    accordionActions =
+      simpleComponent
+        { name: "AccordionActions"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ children
+                  ]
+            , generate: [ "classes", "disableSpacing" ]
+            }
+        , root: rbProps.div
+        }
+
+    accordionDetails =
+      simpleComponent
+        { name: "AccordionDetails"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ children
+                  ]
+            , generate: [ "classes" ]
+            }
+        , root: rbProps.div
+        }
+
+    accordionSummary =
+      simpleComponent
+        { name: "AccordionSummary"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ children
+                  , checkedProp "IconButtonProps" foreignType
+                  , checkedProp "expandIcon" arrayJSX
+                  ]
+            , generate: [ "classes" ]
+            }
+        , root: MUIComponent buttonBase
         }
 
     avatar =
@@ -2609,6 +2666,10 @@ components =
   --    }
   in
     [ appBar
+    , accordion
+    , accordionActions
+    , accordionDetails
+    , accordionSummary
     , avatar
     , backdrop
     , badge
