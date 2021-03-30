@@ -5,9 +5,10 @@ import Codegen (Codegen(..), componentJSFile, componentPSFile, iconJSFile, iconP
 import Codegen (component, icon, write) as Codegen
 import Codegen.AST (ModuleName(..), TypeName(..))
 import Codegen.AST (Type) as AST
+import Codegen.AST.Sugar.Type (boolean, int, number, string)
 import Codegen.AST.Sugar.Type (constructor) as Type
 import Codegen.AST.Types (TypeF(..))
-import Codegen.Component (Component, Icon, ModulePath(..), Root(..), FieldDetails, arrayJSX, iconName, jsx, psImportPath, rbProps)
+import Codegen.Component (Component, FieldDetails, Icon, ModulePath(..), Root(..), arrayJSX, iconName, jsx, psImportPath, rbProps)
 import Codegen.Component (componentName) as Component
 import Codegen.TS.MUI (componentProps) as TS.MUI
 import Codegen.TS.Types (InstantiationStrategy(..))
@@ -53,7 +54,14 @@ forcedProp l t r = Tuple l { force: Just { required: r }, "type": t }
 components :: Array Component
 components =
   let
+    aria =
+      [ "aria-haspopup"
+      , "aria-controls"
+      ]
+
     children = checkedProp "children" arrayJSX
+
+    forcedChildren = forcedProp "children" arrayJSX true
 
     eventHandlerProp name = checkedProp name (Type.constructor "React.Basic.Events.EventHandler")
 
@@ -66,21 +74,11 @@ components =
       , checkedProp "alignItems" (Type.constructor "MUI.System.Flexbox.AlignItems")
       , checkedProp "alignSelf" (Type.constructor "MUI.System.Flexbox.AlignSelf")
       , checkedProp "flexDirection" (Type.constructor "MUI.System.Flexbox.FlexDirection")
-      , checkedProp "flexGrow" (roll TypeNumber)
-      , checkedProp "flexBasis" (roll TypeString)
-      , checkedProp "flexShrink" (roll TypeNumber)
+      , checkedProp "flexGrow" number
+      , checkedProp "flexBasis" string
+      , checkedProp "flexShrink" number
       , checkedProp "flexWrap" (Type.constructor "MUI.System.Flexbox.FlexWrap")
       , checkedProp "justifyContent" (Type.constructor "MUI.System.Flexbox.JustifyContent")
-      ]
-
-    sizing =
-      [ checkedProp "boxSizing" (Type.constructor "MUI.System.BoxSizing")
-      , checkedProp "height" (roll TypeString)
-      , checkedProp "maxHeight" (roll TypeString)
-      , checkedProp "minHeight" (roll TypeString)
-      , checkedProp "maxWidth" (roll TypeString)
-      , checkedProp "minWidth" (roll TypeString)
-      , checkedProp "width" (roll TypeString)
       ]
 
     transitionTimeout = Type.constructor "MUI.React.TransitionGroup.Timeout"
@@ -104,19 +102,19 @@ components =
     simpleComponent { name, propsRow: { base, generate }, root } =
       { extraDeclarations: []
       , modulePath:
-          { input: Name name
-          , output: Name name
+          { input: Path "core" (Name name)
+          , output: Path "Core" (Name name)
           }
       , propsRow:
           { base
-          , generate
+          , generate: generate <> aria
           , ts: { instantiation: Nothing, unionName: \_ _ -> Nothing }
           }
       , root
       }
 
     touchRippleType =
-      { path: (Path "ButtonBase" (Name "TouchRipple"))
+      { path: (Path "Core" (Path "ButtonBase" (Name "TouchRipple")))
       , name: "TouchRipple"
       }
 
@@ -125,7 +123,7 @@ components =
         { name: "AppBar"
         , propsRow:
             { base: Map.fromFoldable [ children ]
-            , generate: [ "classes", "color", "position" ]
+            , generate: [ "classes", "color", "elevation", "position" ]
             }
         , root: MUIComponent paper
         }
@@ -204,32 +202,79 @@ components =
     --      }
     --    }
     box =
-      simpleComponent
-        { name: "Box"
-        , propsRow:
-            { base:
-                Map.fromFoldable
-                  $ flexbox
-                  <> sizing
-                  <> [ children
-                    , checkedProp "border" foreignType
-                    , checkedProp "borderBottom" foreignType
-                    , checkedProp "borderColor" foreignType
-                    , checkedProp "borderLeft" foreignType
-                    , checkedProp "borderRadius" foreignType
-                    , checkedProp "borderRight" foreignType
-                    , checkedProp "borderTop" foreignType
-                    , checkedProp "component" (roll TypeString)
-                    , checkedProp
-                        "display"
-                        (Type.constructor "MUI.System.Display.Display")
-                    ]
-            , generate:
-                [ "clone"
-                ]
-            }
-        , root: rbProps.div
-        }
+      let
+        sizing =
+          [ checkedProp "boxSizing" (Type.constructor "MUI.System.BoxSizing")
+          , checkedProp "height" string
+          , checkedProp "maxHeight" string
+          , checkedProp "minHeight" string
+          , checkedProp "maxWidth" string
+          , checkedProp "minWidth" string
+          , checkedProp "width" string
+          ]
+
+        -- | This is based on `const spacing: SimpleStyleFunction<...>` from
+        -- | node_modules/@material-ui/system/index.d.ts
+        -- |
+        -- | It seems that this typescript type is only used by Box
+        spacing =
+          [ checkedProp "m" int
+          , checkedProp "mt" int
+          , checkedProp "mb" int
+          , checkedProp "ml" int
+          , checkedProp "mr" int
+          , checkedProp "mx" int
+          , checkedProp "my" int
+          , checkedProp "p" int
+          , checkedProp "pt" int
+          , checkedProp "pb" int
+          , checkedProp "pl" int
+          , checkedProp "pr" int
+          , checkedProp "px" int
+          , checkedProp "py" int
+          , checkedProp "margin" int
+          , checkedProp "marginTop" int
+          , checkedProp "marginRight" int
+          , checkedProp "marginBottom" int
+          , checkedProp "marginLeft" int
+          , checkedProp "marginX" int
+          , checkedProp "marginY" int
+          , checkedProp "padding" int
+          , checkedProp "paddingTop" int
+          , checkedProp "paddingRight" int
+          , checkedProp "paddingBottom" int
+          , checkedProp "paddingLeft" int
+          , checkedProp "paddingX" int
+          , checkedProp "paddingY" int
+          ]
+      in
+        simpleComponent
+          { name: "Box"
+          , propsRow:
+              { base:
+                  Map.fromFoldable
+                    $ flexbox
+                    <> sizing
+                    <> spacing
+                    <> [ children
+                      , checkedProp "border" foreignType
+                      , checkedProp "borderBottom" foreignType
+                      , checkedProp "borderColor" foreignType
+                      , checkedProp "borderLeft" foreignType
+                      , checkedProp "borderRadius" foreignType
+                      , checkedProp "borderRight" foreignType
+                      , checkedProp "borderTop" foreignType
+                      , checkedProp "component" (roll TypeString)
+                      , checkedProp
+                          "display"
+                          (Type.constructor "MUI.System.Display.Display")
+                      ]
+              , generate:
+                  [ "clone"
+                  ]
+              }
+          , root: rbProps.div
+          }
 
     breadcrumbs =
       simpleComponent
@@ -257,8 +302,8 @@ components =
       -- , buttonBaseTypeProps.declaration
       -- ]
       , modulePath:
-          { input: Name "ButtonBase"
-          , output: Name "ButtonBase"
+          { input: Path "core" (Name "ButtonBase")
+          , output: Path "Core" (Name "ButtonBase")
           }
       , propsRow:
           { base:
@@ -356,18 +401,16 @@ components =
     --        ]
     --      }
     --    }
-    --card =
-    --  simpleComponent
-    --    { inherits: Just $ MUI.rList
-    --        [ Type.constructor "MUI.Core.Paper.PaperPropsRow"
-    --        , divProps
-    --        ]
-    --    , name: "Card"
-    --    , propsRow:
-    --      { base:  Map.fromFoldable [ children ]
-    --      , generate: [ "classes", "raised" ]
-    --      }
-    --    }
+    card =
+      simpleComponent
+        { name: "Card"
+        , propsRow:
+            { base: Map.fromFoldable [ children ]
+            , generate: [ "classes", "raised" ]
+            }
+        , root: MUIComponent paper
+        }
+
     --cardActionArea =
     --  simpleComponent
     --    { inherits: Just $ MUI.rList'
@@ -380,15 +423,16 @@ components =
     --      , generate: [ "classes" ]
     --      }
     --    }
-    --cardActions =
-    --  simpleComponent
-    --    { inherits: Just $ MUI.rList [ divProps ]
-    --    , name: "CardActions"
-    --    , propsRow:
-    --      { base:  Map.fromFoldable [ children ]
-    --      , generate: [ "classes", "disableSpacing" ]
-    --      }
-    --    }
+    cardActions =
+      simpleComponent
+        { name: "CardActions"
+        , propsRow:
+            { base: Map.fromFoldable [ children ]
+            , generate: [ "classes", "disableSpacing" ]
+            }
+        , root: rbProps.div
+        }
+
     --cardContent =
     --  simpleComponent
     --    { inherits: Just $ MUI.rList [ divProps ]
@@ -398,23 +442,25 @@ components =
     --      , generate: [ "classes" ]
     --      }
     --    }
-    --cardHeader =
-    --  simpleComponent
-    --    { inherits: Just $ MUI.rList [ divProps ]
-    --    , name: "CardHeader"
-    --    , propsRow:
-    --      { base:  Map.fromFoldable
-    --          [ checkedProp "action" jsx
-    --          , checkedProp "avatar" jsx
-    --          , children
-    --          , checkedProp "subheader" jsx
-    --          , checkedProp "subheaderTypographyProps" (Type.constructor "MUI.Core.Typography.TypographyOpaqueProps")
-    --          , checkedProp "title" jsx
-    --          , checkedProp "titleTypographyProps" (Type.constructor "MUI.Core.Typography.TypographyOpaqueProps")
-    --          ]
-    --      , generate: [ "classes", "disableTypography" ]
-    --      }
-    --    }
+    cardHeader =
+      simpleComponent
+        { name: "CardHeader"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ checkedProp "action" jsx
+                  , checkedProp "avatar" jsx
+                  , children
+                  , checkedProp "subheader" jsx
+                  , checkedProp "subheaderTypographyProps" (Type.constructor "MUI.Core.Typography.TypographyProps")
+                  , checkedProp "title" jsx
+                  , checkedProp "titleTypographyProps" (Type.constructor "MUI.Core.Typography.TypographyProps")
+                  ]
+            , generate: [ "classes", "disableTypography" ]
+            }
+        , root: rbProps.div
+        }
+
     --cardMedia =
     --  simpleComponent
     --    { inherits: Just $ MUI.rList [ divProps ]
@@ -440,7 +486,7 @@ components =
                     , checkedProp "indeterminateIcon" jsx
                     , checkedProp "inputProps" foreignType
                     , checkedProp "inputRef" foreignType
-                    , checkedProp "value" foreignType
+                    , checkedProp "value" string
                     ]
                       <> (map eventHandlerProp [ "onChange" ])
                   )
@@ -545,7 +591,8 @@ components =
         , propsRow:
             { base: mempty
             , generate:
-                [ "disableGutters"
+                [ "classes"
+                , "disableGutters"
                 , "fixed"
                 , "maxWidth"
                 ]
@@ -873,7 +920,7 @@ components =
                   [ checkedProp "control" jsx
                   , checkedProp "label" jsx
                   , eventHandlerProp "onChange"
-                  , checkedProp "value" foreignType
+                  , checkedProp "value" string
                   ]
             , generate:
                 [ "checked"
@@ -939,8 +986,8 @@ components =
     grid =
       { extraDeclarations: []
       , modulePath:
-          { input: Name "Grid"
-          , output: Name "Grid"
+          { input: Path "core" $ Name "Grid"
+          , output: Path "Core" $ Name "Grid"
           }
       , propsRow:
           { base: Map.fromFoldable [ children ]
@@ -975,22 +1022,26 @@ components =
       , root: rbProps.div
       }
 
-    --gridList = simpleComponent
-    --  { inherits: Just $ MUI.rList' [ "MUI.DOM.Generated.Props_ul" ]
-    --  , name: "GridList"
-    --  , propsRow:
-    --    { base: Map.fromFoldable [ children ]
-    --    , generate: [ "cellHeight", "classes", "cols", "spacing" ]
-    --    }
-    --  }
-    --gridListTile = simpleComponent
-    --  { inherits: Just $ MUI.rList' [ "MUI.DOM.Generated.Props_li" ]
-    --  , name: "GridListTile"
-    --  , propsRow:
-    --    { base: Map.fromFoldable [ children ]
-    --    , generate: [ "classes", "cols", "rows" ]
-    --    }
-    --  }
+    gridList =
+      simpleComponent
+        { name: "GridList"
+        , propsRow:
+            { base: Map.fromFoldable [ children ]
+            , generate: [ "cellHeight", "classes", "cols", "spacing" ]
+            }
+        , root: rbProps.ul
+        }
+
+    gridListTile =
+      simpleComponent
+        { name: "GridListTile"
+        , propsRow:
+            { base: Map.fromFoldable [ children ]
+            , generate: [ "classes", "cols", "rows" ]
+            }
+        , root: rbProps.ul
+        }
+
     --gridListTileBar =
     --  simpleComponent
     --    { inherits: Nothing
@@ -1009,15 +1060,16 @@ components =
     --      }
     --    }
     ---- | TODO: update when Transition is figured out
-    --grow =
-    --  simpleComponent
-    --    { inherits: Nothing
-    --    , name: "Grow"
-    --    , propsRow:
-    --      { base: emptyBase
-    --      , generate: [ "in" , "timeout" ]
-    --      }
-    --    }
+    grow =
+      simpleComponent
+        { root: rbProps.div
+        , name: "Grow"
+        , propsRow:
+            { base: mempty
+            , generate: [ "in", "timeout" ]
+            }
+        }
+
     -- | It seems that on the current master
     -- | `HiddenCss` uses `div` as a root
     -- | but `HiddenJs` returns just children.
@@ -1031,11 +1083,14 @@ components =
     hidden =
       { extraDeclarations: []
       , modulePath:
-          { input: Name "Hidden"
-          , output: Name "Hidden"
+          { input: Path "core" $ Name "Hidden"
+          , output: Path "Core" $ Name "Hidden"
           }
       , propsRow:
-          { base: mempty -- Map.fromFoldable [ checkedProp "only" foreignType ]
+          { base:
+              Map.fromFoldable
+                -- | It seems that there is a bug in Hidden typing
+                [ forcedChildren ]
           , generate:
               [ "implementation"
               , "initialWidth"
@@ -1092,14 +1147,15 @@ components =
         , propsRow:
             { base: Map.fromFoldable [ children ]
             , generate:
-                [ "classes"
-                , "color"
-                , "disabled"
-                , "disableFocusRipple"
-                , "disableRipple"
-                , "edge"
-                , "size"
-                ]
+                aria
+                  <> [ "classes"
+                    , "color"
+                    , "disabled"
+                    , "disableFocusRipple"
+                    , "disableRipple"
+                    , "edge"
+                    , "size"
+                    ]
             }
         , root: MUIComponent buttonBase
         }
@@ -1296,20 +1352,16 @@ components =
         , root: rbProps.li
         }
 
-    --listItemAvatar =
-    --  simpleComponent
-    --    { inherits: Nothing
-    --    , name: "ListItemAvatar"
-    --    , propsRow:
-    --      { base:
-    --          Map.fromFoldable
-    --              [ children
-    --              ]
-    --      , generate:
-    --        [ "classes"
-    --        ]
-    --      }
-    --    }
+    listItemAvatar =
+      simpleComponent
+        { name: "ListItemAvatar"
+        , propsRow:
+            { base: Map.fromFoldable [ children ]
+            , generate: [ "classes" ]
+            }
+        , root: rbProps.div
+        }
+
     listItemIcon =
       simpleComponent
         { name: "ListItemIcon"
@@ -1578,6 +1630,80 @@ components =
     --        ]
     --      }
     --    }
+    -- grid =
+    --   { extraDeclarations: []
+    --   , modulePath:
+    --       { input: Name "Grid"
+    --       , output: Name "Grid"
+    --       }
+    --   , propsRow:
+    --       { base: Map.fromFoldable [ children ]
+    --       , generate:
+    --           [ "alignContent"
+    --           , "alignItems"
+    --           , "classes"
+    --           , "container"
+    --           , "direction"
+    --           , "item"
+    --           , "justify"
+    --           , "lg"
+    --           , "md"
+    --           , "sm"
+    --           , "spacing"
+    --           , "wrap"
+    --           , "xl"
+    --           , "xs"
+    --           , "zeroMinWidth"
+    --           ]
+    --       , ts:
+    --           { instantiation: Nothing
+    --           , unionName:
+    --               \property members -> case property of
+    --                 _
+    --                   | property `Array.elem` [ "xs", "sm", "md", "lg", "xl" ] -> Just $ TypeName "GridSize"
+    --                 "spacing" -> Just $ TypeName "GridSpacing"
+    --                 "justify" -> Just $ TypeName "GridJustification"
+    --                 otherwise -> Nothing
+    --           }
+    --       }
+    --   , root: rbProps.div
+    --   }
+    pagination =
+      { extraDeclarations: []
+      , modulePath:
+          { input: Path "lab" $ Name "Pagination"
+          , output: Path "Lab" $ Name "Pagination"
+          }
+      , propsRow:
+          { base:
+              Map.fromFoldable
+                $ [ checkedProp "count" int
+                  , eventHandlerProp "onChange"
+                  , forcedProp "boundryCount" int false
+                  , checkedProp "siblingCount" int
+                  ]
+          , generate:
+              [ "classes"
+              , "color"
+              , "defaultPage"
+              , "disabled"
+              -- | TODO: move to base
+              -- | function(type: string, page: number, selected: bool) => string
+              -- | , "getItemAraiaLabel"
+              , "hideNextButton"
+              , "hidePrevButton"
+              , "page"
+              , "shape"
+              , "showFirstButton"
+              , "showLastButton"
+              , "size"
+              , "variant"
+              ]
+          , ts: { instantiation: Nothing, unionName: \_ _ -> Nothing }
+          }
+      , root: rbProps.div
+      }
+
     paper =
       simpleComponent
         { name: "Paper"
@@ -1741,7 +1867,7 @@ components =
                   , eventHandlerProp "onOpen"
                   , checkedProp "renderValue" foreignType
                   , checkedProp "SelectDisplayProps" foreignType
-                  , checkedProp "value" foreignType
+                  , checkedProp "value" string
                   ]
             , generate:
                 [ "autoWidth"
@@ -2322,8 +2448,8 @@ components =
     textField textFieldType unionMember =
       { extraDeclarations: []
       , modulePath:
-          { input: Name "TextField"
-          , output: Path "TextField" (Name textFieldType)
+          { input: Path "core" $ Name "TextField"
+          , output: Path "Core" $ Path "TextField" (Name textFieldType)
           }
       , propsRow:
           { base:
@@ -2340,7 +2466,7 @@ components =
                 , eventHandlerProp "onBlur"
                 , eventHandlerProp "onFocus"
                 --, checkedProp "SelectProps" (Type.constructor "MUI.Core.Select.SelectOpaqueProps")
-                , checkedProp "value" foreignType
+                , checkedProp "value" string
                 ]
           , generate:
               [ "autoComplete"
@@ -2493,11 +2619,11 @@ components =
     , buttonBase
     , buttonGroup
     , button
-    -- , card
+    , card
     -- , cardActionArea
-    -- , cardActions
+    , cardActions
     -- , cardContent
-    -- , cardHeader
+    , cardHeader
     -- , cardMedia
     , circularProgress
     -- , clickAwayListener
@@ -2525,10 +2651,10 @@ components =
     , formHelperText
     , formLabel
     , grid
-    -- , gridList
-    -- , gridListTile
+    , gridList
+    , gridListTile
     -- , gridListTileBar
-    -- , grow
+    , grow
     , hidden
     -- , icon
     , iconButton
@@ -2541,7 +2667,7 @@ components =
     , link
     , list
     , listItem
-    -- , listItemAvatar
+    , listItemAvatar
     , listItemIcon
     -- , listItemSecondaryAction
     , listItemText
@@ -2551,6 +2677,7 @@ components =
     , modal
     -- , nativeSelect
     -- , noSsr
+    , pagination
     , paper
     -- , popover
     -- , popper
