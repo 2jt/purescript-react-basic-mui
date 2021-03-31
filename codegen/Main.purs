@@ -178,7 +178,7 @@ components =
                 Map.fromFoldable
                   [ children
                   , checkedProp "IconButtonProps" foreignType
-                  , checkedProp "expandIcon" arrayJSX
+                  , checkedProp "expandIcon" jsx
                   ]
             , generate: [ "classes" ]
             }
