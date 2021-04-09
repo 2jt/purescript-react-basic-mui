@@ -113,20 +113,24 @@ components =
       , root
       }
 
+    labComponent { name, propsRow: { base, generate }, root } =
+      { extraDeclarations: []
+      , modulePath:
+          { input: Path "lab" $ (Name name)
+          , output: Path "Lab" $ (Name name)
+          }
+      , propsRow:
+          { base
+          , generate: generate <> aria
+          , ts: { instantiation: Nothing, unionName: \_ _ -> Nothing }
+          }
+      , root
+      }
+
     touchRippleType =
       { path: (Path "Core" (Path "ButtonBase" (Name "TouchRipple")))
       , name: "TouchRipple"
       }
-
-    appBar =
-      simpleComponent
-        { name: "AppBar"
-        , propsRow:
-            { base: Map.fromFoldable [ children ]
-            , generate: [ "classes", "color", "elevation", "position" ]
-            }
-        , root: MUIComponent paper
-        }
 
     accordion =
       simpleComponent
@@ -183,6 +187,46 @@ components =
             , generate: [ "classes" ]
             }
         , root: MUIComponent buttonBase
+        }
+
+    alert =
+      labComponent
+        { name: "Alert"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ children
+                  , checkedProp "action" jsx
+                  , checkedProp "icon" jsx
+                  , checkedProp "iconMapping" foreignType
+                  , eventHandlerProp "onClose"
+                  ]
+            , generate: [ "classes", "closeText", "color", "role", "severity", "variant" ]
+            }
+        , root: MUIComponent paper
+        }
+
+    alertTitle =
+      labComponent
+        { name: "AlertTitle"
+        , propsRow:
+            { base:
+                Map.fromFoldable
+                  [ children
+                  ]
+            , generate: [ "classes" ]
+            }
+        , root: rbProps.div
+        }
+
+    appBar =
+      simpleComponent
+        { name: "AppBar"
+        , propsRow:
+            { base: Map.fromFoldable [ children ]
+            , generate: [ "classes", "color", "elevation", "position" ]
+            }
+        , root: MUIComponent paper
         }
 
     avatar =
@@ -2670,6 +2714,8 @@ components =
     , accordionActions
     , accordionDetails
     , accordionSummary
+    , alert
+    , alertTitle
     , avatar
     , backdrop
     , badge
